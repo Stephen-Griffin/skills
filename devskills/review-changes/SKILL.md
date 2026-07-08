@@ -22,6 +22,7 @@ Use this skill for substantive reviews of changesets. A changeset may be a GitHu
 - Use the main PR comment for cross-cutting findings, items outside the diff, review stance, and deduplicated summary.
 - For GitHub PRs, review existing comments, reviews, and author responses before deciding what feedback to add.
 - Do not approve a PR if unresolved blocker-level findings remain.
+- Every time a review reaches a posting plan, invoke the question tool to ask the review type and posting plan. Never just print a "Posting Plan" section and stop — presenting the plan as text without asking is not sufficient.
 
 ## User Interaction Tools
 
@@ -363,7 +364,21 @@ Inline comment format:
 <suggested fix or question>
 ```
 
-Keep inline comments focused. Do not include AI disclosure in every inline comment unless the user asks.
+When the finding has a small, concrete code fix (e.g. reordering a conditional, guarding a null check, swapping an operator), include the fix as a short fenced code snippet in the inline comment rather than only describing it in prose. For example:
+
+```md
+Here is a potential fix:
+
+​```ts
+if (!x) {
+	...
+}
+​```
+```
+
+Keep the snippet minimal — just the changed lines or the smallest coherent block, not a full-file diff. Only include a code snippet when the fix is genuinely small and unambiguous; for larger or more involved changes, describe the fix in prose instead.
+
+Keep inline comments focused.
 
 #### Reviewer Notes Versus Author-Facing Review
 
@@ -395,38 +410,30 @@ Do not dump reviewer notes into the PR comment. The author-facing review should 
 
 The author-facing review body should avoid repeating inline details, and should not include a section that summarizes or lists what the inline comments cover — that is redundant with the inline threads themselves. Limit the body to cross-cutting findings, direct questions, and the overall stance.
 
-If AI disclosure is required or requested, place it as a short footer rather than opening the review with it:
-
-```md
-AI-assisted review using `<tool/agent name>` with `<model id>`.
-```
-
-Use the active tool/agent name and model ID from the current session if available.
-
 ### 12. Ask For Review Mode Before Posting
 
-Before posting anything, ask the user to choose the review mode unless they already specified it.
+As soon as the review reaches a posting plan (findings are ready and the read-only output has been produced), immediately invoke the question tool. Do not describe the posting plan in prose and then stop — the question tool call is mandatory every time, not optional or conditional on the user asking first.
 
-Use the available user-question tool.
+Ask this as two questions in the same question-tool call (skip the second question if the first answer rules out posting):
 
-Recommended options:
+**Question 1 — Review type:**
 
-- `Read-Only Review`: Print the review in chat only. Do not post.
-- `Formal Review`: Post a GitHub PR review with inline comments and/or an overall review body.
+- `Post Comments To PR`: Post a formal GitHub PR review (inline comments and/or an overall review body).
+- `Just Output In OpenCode`: Read-only. Print the review in chat only. Do not post.
+- (the question tool's built-in custom-answer option covers "something else")
 
-If the target is not a GitHub PR, Formal Review is unavailable. Explain that read-only review can proceed, or ask whether the user wants to provide a PR target.
+If the target is not a GitHub PR, `Post Comments To PR` is unavailable. Say so and either proceed read-only or ask whether the user wants to provide a PR target.
 
-If the user selects Formal Review, ask for the disposition and include your recommendation in the question.
+**Question 2 — Posting plan** (only ask when Question 1 is `Post Comments To PR`; include your recommendation):
 
-Recommended disposition options:
-
-- `Comment`: Use when findings are non-blocking, informational, need author clarification, or CI is pending/inconclusive without confirmed blockers.
-- `Approve`: Use only when no unresolved blocker-level or important correctness issues remain, including unresolved prior blocker feedback, and required CI is not failing or pending.
-- `Request Changes`: Use when confirmed blocker-level findings remain, prior blocker feedback is still unresolved, or required CI is failing because of the changeset.
+- `Inline Comments + Request Changes`: Use when confirmed blocker-level findings remain, prior blocker feedback is still unresolved, or required CI is failing because of the changeset.
+- `Inline Comments + Approve`: Use only when no unresolved blocker-level or important correctness issues remain, including unresolved prior blocker feedback, and required CI is not failing or pending.
+- `Inline Comments + Comment`: Use when findings are non-blocking, informational, need author clarification, or CI is pending/inconclusive without confirmed blockers.
+- `Just Comments`: Post inline/general comments only, with no overall review event (no approve/comment/request-changes disposition).
+- (the question tool's built-in custom-answer option covers "type for a different answer")
 
 Also ask if unclear:
 
-- Whether to include AI disclosure.
 - Whether minor nits should be posted or omitted.
 - Whether to post security-sensitive findings publicly or summarize privately.
 
@@ -741,8 +748,6 @@ Additional notes:
 - <missing validation/docs/deployment concern, if any>
 
 Overall: <what needs to change before this is ready>.
-
-AI-assisted review using `<tool/agent name>` with `<model id>`.
 ```
 
 Use this shape for comment reviews:
@@ -755,8 +760,6 @@ Additional notes:
 - <non-blocking follow-up or question, if any>
 
 Overall: <short PR-specific stance>.
-
-AI-assisted review using `<tool/agent name>` with `<model id>`.
 ```
 
 Use this shape for approvals:
@@ -769,11 +772,9 @@ Non-blocking follow-ups:
 - <follow-up, if any>
 
 Overall: <short approval rationale tied to the PR>.
-
-AI-assisted review using `<tool/agent name>` with `<model id>`.
 ```
 
-Omit empty sections. Omit the AI-assisted footer when the user asks not to include it or the workflow does not require it.
+Omit empty sections.
 
 ### Formal Review Preview
 
