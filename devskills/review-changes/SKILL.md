@@ -1,11 +1,11 @@
 ---
 name: review-changes
-description: Use when reviewing a changeset, including GitHub PRs, local branches, commit ranges, working tree changes, docs, config, tests, CI/CD, infrastructure, migrations, or other reviewable work; supports read-only review and formal GitHub review posting.
+description: Use when reviewing a changeset, including GitHub PRs, local branches, commit ranges, working tree changes, docs, config, tests, CI/CD, infrastructure, migrations, or other reviewable work; autonomously posts formal GitHub PR reviews (comments/approve/request changes) and supports read-only review for non-PR targets.
 ---
 
 # Review Changes
 
-Use this skill for substantive reviews of changesets. A changeset may be a GitHub pull request, a local branch, a commit range, staged or unstaged working tree changes, a set of files, or other work that could reasonably be reviewed before merge. The goal is to produce high-signal review feedback, pressure-test it before presenting it, and help the user decide whether and how to post it.
+Use this skill for substantive reviews of changesets. A changeset may be a GitHub pull request, a local branch, a commit range, staged or unstaged working tree changes, a set of files, or other work that could reasonably be reviewed before merge. The goal is to produce high-signal review feedback, pressure-test it, and — for GitHub PRs — post it autonomously as a formal review.
 
 ## Core Principles
 
@@ -14,40 +14,28 @@ Use this skill for substantive reviews of changesets. A changeset may be a GitHu
 - Prioritize correctness, security, data integrity, deployment/runtime breakage, CI/validation status, tests, documentation, commit atomicity, observability, and rollback risk.
 - Minor nits are allowed, but clearly label them as non-blocking.
 - Always do a second pass before presenting or posting findings.
-- Ask clarifying questions whenever target, base, ticket criteria, scope, severity expectations, or posting intent is unclear.
-- Never post GitHub comments, reviews, approvals, or requests for changes without explicit user approval.
+- This skill is for posting reviews to GitHub PRs and should operate autonomously. For GitHub PR targets, always post the review (inline comments and/or an overall review with `COMMENT`, `APPROVE`, or `REQUEST_CHANGES`) directly. Do not ask whether to post, what review mode to use, or for approval of a preview — decide the disposition from the Severity Guidance and post it.
 - Never expose secrets. If a secret appears in a file or log, report that secret material was exposed without repeating the value.
 - Use `gh` for GitHub operations when available.
 - Prefer line comments for findings tied to exact changed diff lines.
 - Use the main PR comment for cross-cutting findings, items outside the diff, review stance, and deduplicated summary.
 - For GitHub PRs, review existing comments, reviews, and author responses before deciding what feedback to add.
 - Do not approve a PR if unresolved blocker-level findings remain.
-- Every time a review reaches a posting plan, invoke the question tool to ask the review type and posting plan. Never just print a "Posting Plan" section and stop — presenting the plan as text without asking is not sufficient.
+- The only question this skill should ever ask the user is whether to include low/nit-priority findings in the posted review, and only ask that when genuinely unsure whether they add value (e.g., a large number of nits that could clutter the review, or nits of ambiguous relevance). When there are only a few clear nits, or nits are clearly worth surfacing, include them without asking.
 
 ## User Interaction Tools
 
-Use the available user-question tool whenever the workflow says to ask the user.
+The only question this skill should ever ask the user is the low/nit-priority inclusion question described above, and only when genuinely unsure. Do not use the question tool (or ask in chat) for target selection, ticket context, review mode, posting intent, disposition, or preview approval — decide autonomously using the guidance in this skill and proceed.
 
 - In OpenCode, use `question`.
 - In Claude Code, use `askuserquestion` or the equivalent available ask-user tool.
 - If no structured question tool is available, ask directly in chat and wait for the answer before continuing.
 
-Ask concise questions with recommended options when possible. Continue without asking only when the user already provided the needed information or the safe default is explicit in this skill.
+Ask concisely with recommended options when this rare question is warranted.
 
 ## Review Modes
 
-### Read-Only Review
-
-Inspect the changeset and return findings, change summary, 4C evaluation, and draft review body in chat. Do not post.
-
-Use when:
-
-- The user asks for a review without asking to post it.
-- The target is a local branch, commit range, working tree change, file set, or any target that is not a GitHub PR.
-- The user asks to pressure-test findings.
-- The user has not explicitly approved posting comments.
-
-### Formal GitHub Review
+### Formal GitHub Review (default for PR targets)
 
 Post inline comments and/or an overall GitHub PR review with one of:
 
@@ -55,11 +43,16 @@ Post inline comments and/or an overall GitHub PR review with one of:
 - `APPROVE`
 - `REQUEST_CHANGES`
 
+Use automatically whenever the target is a GitHub PR. Determine the disposition from the Severity Guidance section and post it without asking. This is the default and expected outcome for any GitHub PR review — do not stop short of posting.
+
+### Read-Only Review
+
+Inspect the changeset and return findings, change summary, 4C evaluation, and draft review body in chat. Do not post.
+
 Use only when:
 
-- The target is a GitHub PR.
-- The user selects Formal Review.
-- The user explicitly chooses or confirms the review disposition.
+- The target is not a GitHub PR (a local branch, commit range, working tree change, or file set — there is nothing to post to).
+- The user explicitly asks for a read-only/no-post review of a PR.
 
 ## Required Workflow
 
@@ -104,15 +97,7 @@ Do not mutate the user's branch while determining the target. Do not checkout, r
 
 ### 2. Gather Ticket Or Acceptance Criteria
 
-Before reviewing, determine whether the user provided ticket context, acceptance criteria, issue links, product requirements, or a PR description. If none was provided, ask whether they want to provide it.
-
-Recommended options:
-
-- `Provide Ticket`: User will provide ticket URL, issue text, or acceptance criteria.
-- `No Ticket`: Review against code, tests, docs, and stated intent only.
-- `Acceptance Criteria Only`: User will paste expected behavior without a ticket link.
-
-Use ticket context to validate completeness and expected behavior. Do not block the review if no ticket exists.
+Before reviewing, check whether the user already provided ticket context, acceptance criteria, issue links, product requirements, or a PR description. Do not ask the user for this — use what is available (PR body, linked issues, commit messages) and proceed. If no ticket context exists, review against code, tests, docs, and stated intent only, and do not block the review.
 
 ### 3. Gather Changeset Context
 
@@ -230,7 +215,7 @@ Extract:
 - Whether commits are atomic, reviewable, and organized as coherent vertical slices.
 - For PRs, where the changeset sits in the review lifecycle and whether prior feedback has been addressed.
 
-If intent is unclear, ask the user before judging completeness. If the changeset is large, focus first on files with runtime, deployment, security, data, or compatibility impact.
+If intent is unclear, infer it from the PR title/body, commits, and diff, and note the inferred intent in reviewer notes rather than asking. If the changeset is large, focus first on files with runtime, deployment, security, data, or compatibility impact.
 
 ### 6. Fan Out Specialist Review
 
@@ -260,7 +245,7 @@ Do not treat specialist output as final. Reconcile duplicates, pressure-test cla
 
 Build a concise bulleted summary of the main changes for the reviewer. Include non-code changes such as docs, config, CI/CD, infrastructure, dependency updates, migrations, generated artifacts, and tests when present.
 
-Use this summary to confirm scope and catch mismatches between stated intent and actual changes. If the summary reveals ambiguity, ask the user for clarification.
+Use this summary to confirm scope and catch mismatches between stated intent and actual changes. If the summary reveals ambiguity, note it as an open question in reviewer notes rather than asking the user.
 
 ### 8. Initial Review Pass
 
@@ -311,7 +296,7 @@ Evaluate the changeset across the 4Cs. Keep this separate from severity-ranked f
 - `Conciseness`: Is the change appropriately scoped, with atomic commits and without avoidable complexity, duplication, unrelated edits, or unnecessary dependencies?
 - `Clarity`: Is the implementation understandable, with clear names, readable tests, useful docs, and maintainable structure?
 
-Use clear ratings such as `strong`, `acceptable`, `needs work`, or `unclear`, with short evidence for each. If a 4C assessment depends on missing context, ask the user or label it `unclear`.
+Use clear ratings such as `strong`, `acceptable`, `needs work`, or `unclear`, with short evidence for each. If a 4C assessment depends on missing context, label it `unclear` rather than asking the user.
 
 ### 10. Pressure-Test Pass
 
@@ -410,71 +395,41 @@ Do not dump reviewer notes into the PR comment. The author-facing review should 
 
 The author-facing review body should avoid repeating inline details, and should not include a section that summarizes or lists what the inline comments cover — that is redundant with the inline threads themselves. Limit the body to cross-cutting findings, direct questions, and the overall stance.
 
-### 12. Ask For Review Mode Before Posting
+### 12. Decide Disposition And Handle Nits
 
-As soon as the review reaches a posting plan (findings are ready and the read-only output has been produced), immediately invoke the question tool. Do not describe the posting plan in prose and then stop — the question tool call is mandatory every time, not optional or conditional on the user asking first.
+For GitHub PR targets, decide the disposition autonomously from the Severity Guidance section — do not ask the user:
 
-Ask this as two questions in the same question-tool call (skip the second question if the first answer rules out posting):
+- `REQUEST_CHANGES`: Confirmed blocker-level findings remain, prior blocker feedback is still unresolved, or required CI is failing because of the changeset.
+- `APPROVE`: No unresolved blocker-level or important correctness issues remain (including unresolved prior blocker feedback), and required CI is not failing or pending.
+- `COMMENT`: Findings are non-blocking/informational, need author clarification, or CI is pending/inconclusive without confirmed blockers.
 
-**Question 1 — Review type:**
+Post inline comments alongside the overall review whenever findings map to specific diff lines.
 
-- `Post Comments To PR`: Post a formal GitHub PR review (inline comments and/or an overall review body).
-- `Just Output In OpenCode`: Read-only. Print the review in chat only. Do not post.
-- (the question tool's built-in custom-answer option covers "something else")
+Nits handling: by default, include low/nit-priority findings in the review (as inline comments or a short non-blocking note) without asking. Only invoke the question tool to ask whether to include them when genuinely unsure they add value — for example, a large volume of nits that could clutter the review, or nits of ambiguous relevance to this repo's conventions. This is the only situation in which this skill should ask the user anything.
 
-If the target is not a GitHub PR, `Post Comments To PR` is unavailable. Say so and either proceed read-only or ask whether the user wants to provide a PR target.
+Handle security-sensitive findings by summarizing them privately in the review body (no exploit details, no secret values, no live payloads) rather than omitting them or asking whether to post them.
 
-**Question 2 — Posting plan** (only ask when Question 1 is `Post Comments To PR`; include your recommendation):
+### 13. Build The Review
 
-- `Inline Comments + Request Changes`: Use when confirmed blocker-level findings remain, prior blocker feedback is still unresolved, or required CI is failing because of the changeset.
-- `Inline Comments + Approve`: Use only when no unresolved blocker-level or important correctness issues remain, including unresolved prior blocker feedback, and required CI is not failing or pending.
-- `Inline Comments + Comment`: Use when findings are non-blocking, informational, need author clarification, or CI is pending/inconclusive without confirmed blockers.
-- `Just Comments`: Post inline/general comments only, with no overall review event (no approve/comment/request-changes disposition).
-- (the question tool's built-in custom-answer option covers "type for a different answer")
-
-Also ask if unclear:
-
-- Whether minor nits should be posted or omitted.
-- Whether to post security-sensitive findings publicly or summarize privately.
-
-Never post security-sensitive details publicly without explicit user confirmation. Summarize privately when a finding could expose an exploit path, secret, or sensitive operational detail.
-
-### 13. Preview And Confirm Review
-
-Before posting a formal GitHub review, generate a complete preview and ask the user to approve it with the available user-question tool. Do not post anything until the user approves the exact preview.
-
-The preview must include:
+Generate the complete review content that will be posted:
 
 - Target PR and reviewed `headRefOid`.
 - Formal disposition: `COMMENT`, `APPROVE`, or `REQUEST_CHANGES`.
-- Author-facing review body exactly as it will be posted.
-- Inline comments exactly as they will be posted, including path, line, side, and body.
-- Findings intentionally kept out of GitHub.
-- Sensitive findings that require private handling.
-- Any line-mapping uncertainty or comments that could not be placed inline.
+- Author-facing review body.
+- Inline comments, including path, line, side, and body.
+- Any line-mapping uncertainty or comments that could not be placed inline (fold these into the main review body instead of dropping them).
 
-Recommended confirmation options:
-
-- `Post As Shown`: Post the exact preview.
-- `Revise Review`: Ask what should change, regenerate the full preview, and ask again.
-- `Do Not Post`: Keep the review draft in chat only.
-
-If the user approves only part of the preview, post only the approved subset. If the user requests changes to the review, do not post until a revised preview is generated and approved.
-
-Before generating or posting the preview, re-fetch the current PR `headRefOid`. If the PR head changed since review, stop and ask whether to re-review before preparing the posting preview.
+Re-fetch the current PR `headRefOid` before building the review. If the PR head changed since context was gathered, re-gather the diff and comments for the new head before proceeding — do not ask the user, just refresh and continue.
 
 ### 14. Posting Procedure
 
-Only post after explicit approval.
+Post the review directly. Do not wait for approval or a preview confirmation — this skill posts autonomously.
 
 Before posting:
 
-- Get current `headRefOid`.
-- Compare it to the previewed and approved `headRefOid`; if it changed, stop and ask whether to re-review before posting.
-- Use the latest commit SHA for inline comments only after confirming the approved preview is still current.
+- Get current `headRefOid` and confirm it matches what the review was built against; if it changed, refresh context and rebuild the review for the new head.
 - Prefer GitHub line comments on changed diff lines.
-- If line mapping fails or changes after preview approval, stop, regenerate the preview, and ask for approval again.
-- Post only the exact approved preview. Do not silently rewrite, omit, move, or add comments during posting.
+- If line mapping fails, fold that finding into the main review body instead of stopping to ask.
 - Never include secret values.
 
 Recommended command:
@@ -494,9 +449,7 @@ gh api -X POST "repos/<owner>/<repo>/pulls/<number>/comments" \
   -f body="<comment body>"
 ```
 
-Submit formal reviews with `gh pr review` using the correct event only after the user explicitly chooses it.
-
-Recommended commands:
+Submit the formal review with `gh pr review` using the disposition decided in step 12:
 
 ```bash
 gh pr review <number> -R <owner>/<repo> --comment --body "<body>"
@@ -556,10 +509,10 @@ Always proactively look for:
 If secret material is discovered:
 
 - Do not repeat it.
-- State that secret material was exposed.
+- State that secret material was exposed without repeating the value.
 - Recommend rotation if the value may be live.
 - Recommend masking and safer handling.
-- Ask before posting any public comment that could reveal sensitive detail.
+- Post this finding as a summary in the review body without exposing the secret or exploit path — do not ask before posting, just keep the public comment safe.
 
 ## Documentation Review Checklist
 
@@ -723,14 +676,7 @@ When IaC or deployment changes, inspect:
 
 **Questions**
 
-- <question>
-
-**Posting Plan**
-
-- Inline: <count/items>
-- Author-facing review body: <cross-cutting items>
-- Recommended mode: read-only/formal
-- Recommended disposition: comment/approve/request changes
+- <question, only if the nits question from step 12 applies; otherwise omit>
 ```
 
 ### Author-Facing Formal Review Body
@@ -776,30 +722,31 @@ Overall: <short approval rationale tied to the PR>.
 
 Omit empty sections.
 
-### Formal Review Preview
+### Posted Review Summary
 
-Before posting, show the full review exactly as it will be submitted.
+After posting, report exactly what was submitted.
 
 ```md
-**Formal Review Preview**
+**Posted Review**
 
 - Target: <owner/repo#number>
 - Head SHA: <headRefOid>
 - Disposition: <COMMENT/APPROVE/REQUEST_CHANGES>
+- Link: <review URL>
 
 **Main Review Body**
 
-<exact body to post>
+<exact body posted>
 
 **Inline Comments**
 
-- `<path>:<line>` `<side>`
+- `<path>:<line>` `<side>` — <link>
 
   <exact inline comment body>
 
-**Draft-Only / Not Posted**
+**Not Posted**
 
-- <finding or note intentionally kept out of GitHub>
+- <finding or note intentionally kept out of GitHub, e.g. omitted nits, and why>
 
 **Sensitive Findings**
 
@@ -809,12 +756,12 @@ Before posting, show the full review exactly as it will be submitted.
 ## Important Constraints
 
 - Do not mutate the user's branch while reviewing.
-- Do not checkout, rebase, reset, stash, or commit unless explicitly needed and approved.
+- Do not checkout, rebase, reset, stash, or commit unless explicitly needed.
 - Do not commit review artifacts.
-- Do not post without explicit user approval of the exact review preview.
-- Do not post if the PR head SHA, inline line mapping, disposition, main body, or inline comment bodies differ from the approved preview.
+- For GitHub PR targets, always post the review — do not stop to ask whether to post, what mode to use, or for preview approval.
 - Do not overstate speculative issues.
 - Do not approve a PR if unresolved blocker-level findings remain.
-- Do not request changes if the user selected `Comment` as the formal review disposition.
+- Do not request changes when the decided disposition is `COMMENT`.
 - Do not expose secret values.
-- Do not post sensitive security details publicly without explicit user confirmation.
+- Do not ask the user anything except the low/nit-priority inclusion question, and only when genuinely unsure.
+- Do not post sensitive security details (secret values, exploit paths) publicly — summarize them privately in the review instead.
